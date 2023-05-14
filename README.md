@@ -80,3 +80,76 @@ This is a toy project using [TCA](https://github.com/pointfreeco/swift-composabl
       }
   }
   ```
+
+## Inspection for body re-computing
+
+- Get the knowledge of how the View's body get called when it environment changes. App uses aa `onAppear` modifier and increments a count in the each tab item feature state.
+
+  ```diff
+  struct State: Equatable {
+  +     var count: Int
+        
+        init(...) { ... }
+    }
+    
+    enum Action: Equatable {
+  +     case onAppear
+    }
+    
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+           switch action {
+  +        case .onAppear:
+  +           state.count += 1
+  +           return .none
+        ...
+  ```
+  
+  and in the view,
+  
+  ```diff
+  var body: some View {
+  +     let _ = Self._printChanges()
+        WithViewStore(store, observe: {$0}) { viewStore in
+            List {
+                Section {
+  +                 Text("\(viewStore.count)")
+                } header: {
+                    Text("OnAppear render count")
+                }
+                ForEach(viewStore.items, id: \.self) { item in
+                    Text(item)
+                }
+            }
+  +         .onAppear{ viewStore.send(.onAppear) }
+        }
+    }
+  ```
+  
+  By making these changes and running the app, `Self._printChanges()` prints
+    ```
+    ListenView: @self changed.
+    ```
+  every time the `body` is called. 
+  
+  
+  These printing also occurs when clicking on the play/pause button in the `safeAreaInset` view which is observing `playbackControlStore` environment property.
+  
+
+  https://github.com/ratnesh-jain/TCA-Shared-Reducer/assets/117887125/30853681-09d4-4b5d-a490-d22b88946fdc
+
+  
+  But `.onAppear` change only appears when the view is actually disappeared when tapping on the other tab and not when clicking on play/pause button.
+  
+
+  https://github.com/ratnesh-jain/TCA-Shared-Reducer/assets/117887125/1f488e03-c120-44b6-a067-540dc32c36ea
+
+  To confirm, moving `Self._printChanges()` inside `WithViewStore` results in the 
+  ```
+  ListenView: unchanged.
+  ```
+
+  https://github.com/ratnesh-jain/TCA-Shared-Reducer/assets/117887125/0257ad18-978a-43d5-ba4a-ecb91bf0b3b3
+
+  I think, this is due to `WithViewStore` is hyper focused on the Reducer's state and it only renders when there is a change in reducer's state. 🤞
+  
