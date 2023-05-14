@@ -13,18 +13,26 @@ import SwiftUI
 struct ListenFeature: Reducer {
     struct State: Equatable {
         var items: [String]
+        var count: Int
         
-        init(items: [String] = Array(0...20).map{String("Item: \($0)")}) {
+        init(items: [String] = Array(0...20).map{String("Item: \($0)")}, count: Int = 0) {
             self.items = items
+            self.count = count
         }
     }
     
     enum Action: Equatable {
-        
+        case onAppear
     }
     
     var body: some ReducerOf<Self> {
-        EmptyReducer()
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                state.count += 1
+                return .none
+            }
+        }
     }
 }
 
@@ -37,12 +45,19 @@ struct ListenView: View {
     }
     
     var body: some View {
+        let _ = Self._printChanges()
         WithViewStore(store, observe: {$0}) { viewStore in
             List {
+                Section {
+                    Text("\(viewStore.count)")
+                } header: {
+                    Text("OnAppear render count")
+                }
                 ForEach(viewStore.items, id: \.self) { item in
                     Text(item)
                 }
             }
+            .onAppear{ viewStore.send(.onAppear) }
         }
     }
 }
